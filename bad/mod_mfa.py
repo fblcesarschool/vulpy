@@ -34,24 +34,32 @@ def do_mfa_view():
 
 @mod_mfa.route('/', methods=['POST'])
 def do_mfa_enable():
-
     if 'username' not in g.session:
         return redirect('/user/login')
 
-    secret = libmfa.mfa_get_secret(g.session['username'])
+    username = g.session['username']
+    secret = libmfa.mfa_get_secret(username)
 
-    otp = request.form.get('otp')
+    if not secret:
+        flash("MFA secret not found. Please try again.")
+        return redirect('/mfa/')
+
+    otp = request.form.get('otp', '').strip()
+
+    if not otp:
+        flash("Please enter the OTP.")
+        return redirect('/mfa/')
 
     totp = pyotp.TOTP(secret)
 
     if totp.verify(otp):
-        libmfa.mfa_enable(g.session['username'])
-        return redirect('/mfa/')
+        libmfa.mfa_enable(username)
+        flash("MFA successfully enabled.")
     else:
-        flash("The OTP was incorrect")
-        return redirect('/mfa/')
+        flash("The OTP was incorrect.")
 
-    return render_template('mfa.enable.html')
+    return redirect('/mfa/')
+
 
 
 @mod_mfa.route('/disable', methods=['GET'])
